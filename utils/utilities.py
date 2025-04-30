@@ -11,11 +11,11 @@ class Utilities:
     @property
     def shared_files_path(self) -> Path:
         """Get the path to the shared files directory."""
-        return Path(__file__).parent.parent.parent.resolve() / "shared"
+        return Path(__file__).parent.parent / "instructions"
 
     def load_instructions(self, instructions_file: str) -> str:
         """Load instructions from a file."""
-        file_path = self.shared_files_path / instructions_file
+        file_path = self.shared_files_path / instructions_file  # <-- Fix: Use instructions_file to construct the path
         with file_path.open("r", encoding="utf-8", errors="ignore") as file:
             return file.read()
 

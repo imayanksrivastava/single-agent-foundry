@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional
 from azure.ai.projects.aio import AIProjectClient
 from azure.ai.projects.models import (
     AsyncAgentEventHandler,
@@ -9,6 +9,7 @@ from azure.ai.projects.models import (
     RunStepDeltaChunk,
     ThreadMessage,
     ThreadRun,
+    AsyncToolSet,
 )
 
 from utils.utilities import Utilities
@@ -17,7 +18,7 @@ from utils.utilities import Utilities
 class StreamEventHandler(AsyncAgentEventHandler[str]):
     """Handles streaming events from Azure Agent and prints responses."""
 
-    def __init__(self, functions: AsyncFunctionTool, project_client: AIProjectClient, utilities: Utilities) -> None:
+    def __init__(self, functions: Optional[AsyncToolSet], project_client: AIProjectClient, utilities: Utilities) -> None:
         super().__init__()
         self.functions = functions
         self.project_client = project_client
@@ -35,7 +36,6 @@ class StreamEventHandler(AsyncAgentEventHandler[str]):
         """Handle incoming streamed tokens from the agent."""
         if delta and hasattr(delta, 'text') and delta.text:
             self._print_agent_prefix()
-            # self.util.log_token_blue(delta.text)  # This already prints and flushes
             self.response_buffer += delta.text
 
             try:
@@ -63,11 +63,25 @@ class StreamEventHandler(AsyncAgentEventHandler[str]):
             pass
 
     async def on_run_step(self, step: RunStep) -> None:
-        """(Optional) Handle intermediate run steps."""
-        pass
+        """Handle intermediate run steps."""
+        if step and step.type == "function_call":
+            try:
+                if self.functions and hasattr(step, 'function_call'):
+                    function_name = step.function_call.name
+                    function_args = step.function_call.arguments
+                    
+                    # Find the function in our toolset
+                    for tool in self.functions.definitions:
+                        if tool.name == function_name:
+                            # Call the function with the arguments
+                            result = await tool.function(**function_args)
+                            print(f"\nFunction result: {result}")
+                            break
+            except Exception as e:
+                print(f"\nError executing function: {str(e)}")
 
     async def on_run_step_delta(self, delta: RunStepDeltaChunk) -> None:
-        """(Optional) Handle streamed run steps."""
+        """Handle streamed run steps."""
         pass
 
     async def on_error(self, data: str) -> None:
